@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpeedRead RSVP</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --accent-color: #bb86fc;
+            --secondary-bg: #1e1e1e;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* Views */
+        .view { display: none; flex-direction: column; height: 100%; padding: 20px; box-sizing: border-box; }
+        .view.active { display: flex; }
+
+        /* Reader Display */
+        #reader-display {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px; /* Base size */
+            font-weight: bold;
+            position: relative;
+            cursor: pointer;
+            user-select: none;
+            font-family: 'Courier New', Courier, monospace; 
+            padding: 0 10px; /* Add padding */
+            overflow: hidden; /* Hide overflow */
+        }
+        
+        #word-container {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr; /* Left (flex), Center (fixed), Right (flex) */
+            width: 100%;
+            text-align: center;
+            /* Scale font down if screen is narrow or chunk is long */
+            font-size: clamp(20px, 5vw, 48px);
+        }
+        
+        .part-left { 
+            text-align: right; 
+            color: var(--text-color);
+        }
+        
+        .part-center {
+            text-align: center;
+            color: #ff4081;
+            min-width: 1ch; /* Ensure it takes up space */
+        }
+        
+        .part-right { 
+            text-align: left; 
+            color: var(--text-color);
+        }
+
+        /* Controls */
+        .controls {
+            background-color: var(--secondary-bg);
+            padding: 20px;
+            border-top: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        button {
+            background-color: var(--accent-color);
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:active { opacity: 0.8; }
+        button.secondary { background-color: #333; color: #fff; }
+        
+        input[type="range"] { width: 100%; }
+        
+        /* Library List */
+        .doc-item {
+            background-color: var(--secondary-bg);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex; /* Added flex for layout */
+            justify-content: space-between;
+            align-items: center;
+        }
+        .doc-title { font-weight: bold; margin-bottom: 5px; }
+        .doc-meta { font-size: 12px; color: #888; }
+        
+        button.small {
+            padding: 5px 10px;
+            font-size: 12px;
+            min-width: auto;
+        }
+
+        /* Inputs */
+        textarea {
+            width: 100%;
+            height: 200px;
+            background-color: #333;
+            color: #fff;
+            border: none;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+        }
+        .fab {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background-color: var(--accent-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- LIBRARY VIEW -->
+    <div id="view-library" class="view active">
+        <h2>My Library</h2>
+        <div id="doc-list" style="overflow-y: auto; flex: 1;">
+            <!-- Docs injected here -->
+        </div>
+        <div class="fab" onclick="showUpload()">+</div>
+    </div>
+
+    <!-- UPLOAD/PASTE VIEW -->
+    <div id="view-upload" class="view">
+        <h2>Add Content</h2>
+        <button onclick="setView('view-library')" class="secondary" style="align-self: flex-start; margin-bottom: 20px;">&lt; Back</button>
+        
+        <h3>Paste Text</h3>
+        <input type="text" id="paste-title" placeholder="Title (Optional)" style="width: 100%; padding: 10px; margin-bottom: 10px; background: #333; border: none; color: white;">
+        <textarea id="paste-content" placeholder="Paste your text here..."></textarea>
+        <button onclick="handlePaste()">Read Pasted Text</button>
+
+        <h3 style="margin-top: 30px;">Or Upload PDF</h3>
+        <input type="file" id="pdf-upload" accept="application/pdf">
+        <button onclick="handlePdf()" style="margin-top: 10px;">Upload PDF</button>
+    </div>
+
+    <!-- READER VIEW -->
+    <div id="view-reader" class="view">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <button onclick="saveAndExit()" class="secondary">Close</button>
+            <span id="reader-title" style="font-size: 14px; color: #888;">Doc Title</span>
+        </div>
+
+        <div id="reader-display" onclick="togglePlay()">
+            <span id="word-container">Ready</span>
+        </div>
+
+        <div class="controls">
+            <div class="control-row">
+                <span id="wpm-display">300 WPM</span>
+                <input type="range" id="wpm-slider" min="100" max="1000" step="50" value="300" oninput="updateWpm(this.value)">
+            </div>
+            
+            <input type="range" id="progress-slider" min="0" max="100" value="0" oninput="seek(this.value)">
+            <div style="text-align: center; font-size: 12px; margin-top: -10px;" id="progress-text">0%</div>
+
+            <div class="control-row" style="justify-content: center; gap: 20px;">
+                <button onclick="rewind(10)" class="secondary">-10</button>
+                <button onclick="togglePlay()" id="play-btn" style="width: 80px;">Play</button>
+                <button onclick="toggleChunk()" id="chunk-btn" class="secondary">1 Word</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let docs = [];
+        let currentDoc = null;
+        let words = [];
+        let currentIndex = 0;
+        let isPlaying = false;
+        let wpm = 300;
+        let intervalId = null;
+        let chunkSize = 1; // 1 = 1 word, 2 = 2 words, etc.
+
+        const API_URL = '/api';
+
+        // Init
+        fetchDocs();
+
+        // API Calls
+        async function fetchDocs() {
+            const res = await fetch(`${API_URL}/documents`);
+            docs = await res.json();
+            renderLibrary();
+        }
+
+        function renderLibrary() {
+            const list = document.getElementById('doc-list');
+            list.innerHTML = docs.map(doc => `
+                <div class="doc-item">
+                    <div onclick="openDoc('${doc.id}')" style="flex: 1;">
+                        <div class="doc-title">${doc.title}</div>
+                        <div class="doc-meta">${doc.type.toUpperCase()} • ${new Date(doc.date).toLocaleDateString()} • Progress: ${doc.progress || 0}</div>
+                    </div>
+                    <div class="doc-actions" style="display: flex; gap: 10px; align-items: center;">
+                        <button class="secondary small" onclick="renameDoc('${doc.id}', '${doc.title.replace(/'/g, "\\'")}')">✎</button>
+                        <button class="secondary small" style="background-color: #cf6679; color: white;" onclick="deleteDoc('${doc.id}')">🗑</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function deleteDoc(id) {
+            if (!confirm('Are you sure you want to delete this document?')) return;
+            
+            await fetch(`${API_URL}/documents/${id}`, { method: 'DELETE' });
+            fetchDocs();
+        }
+
+        async function renameDoc(id, oldTitle) {
+            const newTitle = prompt('Enter new title:', oldTitle);
+            if (!newTitle || newTitle === oldTitle) return;
+
+            await fetch(`${API_URL}/documents/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: newTitle })
+            });
+            fetchDocs();
+        }
+
+        async function openDoc(id) {
+            const res = await fetch(`${API_URL}/documents/${id}`);
+            currentDoc = await res.json();
+            words = currentDoc.content.split(/\s+/);
+            currentIndex = currentDoc.progress || 0;
+            
+            document.getElementById('reader-title').innerText = currentDoc.title;
+            setView('view-reader');
+            updateDisplay();
+            updateProgressUI();
+        }
+
+        async function handlePaste() {
+            const title = document.getElementById('paste-title').value;
+            const content = document.getElementById('paste-content').value;
+            
+            const res = await fetch(`${API_URL}/paste`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, content })
+            });
+            const doc = await res.json();
+            openDoc(doc.id);
+        }
+
+        async function handlePdf() {
+            const fileInput = document.getElementById('pdf-upload');
+            if (!fileInput.files.length) {
+                alert('Please select a file first.');
+                return;
+            }
+
+            const btn = document.querySelector('button[onclick="handlePdf()"]');
+            const originalText = btn.innerText;
+            btn.innerText = 'Uploading...';
+            btn.disabled = true;
+
+            try {
+                const formData = new FormData();
+                formData.append('pdf', fileInput.files[0]);
+
+                const res = await fetch(`${API_URL}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || 'Upload failed');
+                }
+
+                const doc = await res.json();
+                openDoc(doc.id);
+            } catch (e) {
+                alert('Error: ' + e.message);
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        // Reader Logic
+        function togglePlay() {
+            if (isPlaying) pause();
+            else play();
+        }
+
+        function play() {
+            // Restart if at end
+            if (currentIndex >= words.length) {
+                currentIndex = 0;
+                updateDisplay();
+                updateProgressUI();
+            }
+
+            isPlaying = true;
+            document.getElementById('play-btn').innerText = 'Pause';
+            
+            const delay = (60000 / wpm) * chunkSize; // Adjust delay for chunking
+            
+            intervalId = setInterval(() => {
+                if (currentIndex >= words.length) {
+                    pause();
+                    return;
+                }
+                currentIndex += chunkSize;
+                updateDisplay();
+                updateProgressUI();
+            }, delay);
+        }
+
+        function pause() {
+            isPlaying = false;
+            document.getElementById('play-btn').innerText = 'Play';
+            clearInterval(intervalId);
+            saveProgress();
+        }
+
+        function rewind(amount) {
+            currentIndex = Math.max(0, currentIndex - amount);
+            updateDisplay();
+            updateProgressUI();
+            if (!isPlaying) saveProgress();
+        }
+
+        function seek(val) {
+            const pct = val / 100;
+            currentIndex = Math.floor(words.length * pct);
+            updateDisplay();
+            updateProgressUI();
+        }
+
+        function updateWpm(val) {
+            wpm = val;
+            document.getElementById('wpm-display').innerText = `${wpm} WPM`;
+            if (isPlaying) {
+                pause();
+                play();
+            }
+        }
+
+        function toggleChunk() {
+            chunkSize = chunkSize === 1 ? 3 : 1;
+            document.getElementById('chunk-btn').innerText = chunkSize === 1 ? '1 Word' : 'Chunk';
+            updateDisplay(); // Refresh view immediately
+        }
+
+        function updateDisplay() {
+            const container = document.getElementById('word-container');
+            
+            // Safety check
+            if (currentIndex >= words.length) {
+                container.innerText = "Done";
+                return;
+            }
+
+            // Get chunk
+            const chunk = words.slice(currentIndex, currentIndex + chunkSize).join(' ');
+            
+            if (!chunk) return;
+
+            if (chunkSize > 1) {
+                // Simple display for chunks - centered normally
+                container.style.display = 'flex'; 
+                container.style.textAlign = 'center';
+                container.style.justifyContent = 'center';
+                container.style.whiteSpace = 'nowrap'; // Force single line
+                container.innerHTML = chunk;
+            } else {
+                // ORP Logic for single word
+                const len = chunk.length;
+                const orpIndex = Math.ceil(len / 4); // Roughly optimal point
+                const pre = chunk.substring(0, orpIndex);
+                const mid = chunk[orpIndex] || ''; // Fallback for single letter words
+                const post = chunk.substring(orpIndex + 1);
+                
+                // Use the grid layout
+                container.style.display = 'grid';
+                container.innerHTML = `<span class="part-left">${pre}</span><span class="part-center">${mid}</span><span class="part-right">${post}</span>`;
+            }
+        }
+
+        function updateProgressUI() {
+            const pct = (currentIndex / words.length) * 100;
+            document.getElementById('progress-slider').value = pct;
+            document.getElementById('progress-text').innerText = `${Math.floor(pct)}%`;
+        }
+
+        async function saveProgress() {
+            if (!currentDoc) return;
+            await fetch(`${API_URL}/documents/${currentDoc.id}/progress`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ index: currentIndex })
+            });
+        }
+
+        function saveAndExit() {
+            pause();
+            saveProgress();
+            fetchDocs(); // Refresh list
+            setView('view-library');
+        }
+
+        // Navigation
+        function setView(id) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+        function showUpload() { setView('view-upload'); }
+
+    </script>
+</body>
+</html>

@@ -12,6 +12,8 @@ node server.js
 
 Set `PORT` env var to override the default port (3002).
 
+You can test out a lite non-storage based version at [mohanish-ai.com/rsvp](https://mohanish-ai.com/rsvp)
+
 ---
 
 ## UX Decisions

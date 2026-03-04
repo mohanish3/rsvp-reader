@@ -5,3 +5,5 @@ uploads/*
 db.json
 config.local.json
 .env
+.claude
+package-lock.json

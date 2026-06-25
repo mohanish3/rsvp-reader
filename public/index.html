@@ -139,6 +139,13 @@
             border-radius: 8px;
             box-sizing: border-box;
         }
+        /* Dark/Light Mode */
+        .light-mode {
+            --bg-color: #ffffff;
+            --text-color: #121212;
+            --accent-color: #bb86fc;
+            --secondary-bg: #f5f5f5;
+        }
         .fab {
             position: fixed;
             bottom: 20px;
@@ -157,6 +164,10 @@
     </style>
 </head>
 <body>
+    <!-- Dark/Light Mode Toggle -->
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Theme" style="position: fixed; top: 20px; right: 20px; width: 44px; height: 44px; border-radius: 50%; background-color: var(--accent-color); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+        <span id="theme-icon">☀️</span>
+    </button>
 
     <!-- LIBRARY VIEW -->
     <div id="view-library" class="view active">
@@ -505,6 +516,20 @@
         }
 
         // Navigation
+        
+        // Theme Toggle
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+        }
+        
+        // Initialize theme from localStorage
+        (function initTheme() {
+            const saved = localStorage.getItem('theme');
+            if (saved === 'light') {
+                document.body.classList.add('light-mode');
+            }
+        })();
         function setView(id) {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById(id).classList.add('active');

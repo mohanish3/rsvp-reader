@@ -192,6 +192,7 @@
 
         <div id="reader-display" onclick="togglePlay()">
             <span id="word-container">Ready</span>
+            <div id="sentence-context" style="position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:12px;color:rgba(255,255,255,0.22);padding:0 16px;pointer-events:none;"></div>
         </div>
 
         <div id="full-text-panel" onclick="onFullTextClick(event)"></div>
@@ -208,7 +209,7 @@
             <div class="control-row" style="justify-content: center; gap: 20px;">
                 <button onclick="rewind(10)" class="secondary">-10</button>
                 <button onclick="togglePlay()" id="play-btn" style="width: 80px;">Play</button>
-                <button onclick="toggleChunk()" id="chunk-btn" class="secondary">1 Word</button>
+                <span style="display:inline-flex;gap:4px"><button class="secondary" onclick="setChunk(1)" id="chunk-1" style="opacity:1">1W</button><button class="secondary" onclick="setChunk(2)" id="chunk-2" style="opacity:0.4">2W</button><button class="secondary" onclick="setChunk(3)" id="chunk-3" style="opacity:0.4">3W</button></span>
             </div>
         </div>
     </div>
@@ -223,6 +224,7 @@
         let wpm = 300;
         let intervalId = null;
         let chunkSize = 1;
+        let sentences = [];
 
         const API_URL = '/api';
 
@@ -294,6 +296,11 @@
             const res = await fetch(`${API_URL}/documents/${id}`);
             currentDoc = await res.json();
             words = currentDoc.content.split(/\s+/).filter(w => w.length > 0);
+            // Build sentence boundaries for context display
+            sentences = [];
+            const rawSents = currentDoc.content.match(/[^.!?]+[.!?]*/g) || [currentDoc.content];
+            let wi = 0;
+            rawSents.forEach(s => { const sc = s.trim().split(/\s+/).filter(w=>w.length>0); if(sc.length){ sentences.push({text:s.trim(),start:wi,end:wi+sc.length-1}); wi+=sc.length; } });
             currentIndex = Math.min(currentDoc.progress || 0, words.length - 1);
 
             document.getElementById('reader-title').textContent = currentDoc.title;
@@ -364,6 +371,7 @@
             intervalId = setInterval(() => {
                 if (currentIndex >= words.length) { pause(); return; }
                 currentIndex += chunkSize;
+                if (currentIndex % 50 === 0) saveProgress();
                 updateDisplay();
                 updateProgressUI();
             }, delay);
@@ -401,9 +409,9 @@
             if (isPlaying) { pause(); play(); }
         }
 
-        function toggleChunk() {
-            chunkSize = chunkSize === 1 ? 3 : 1;
-            document.getElementById('chunk-btn').textContent = chunkSize === 1 ? '1 Word' : 'Chunk';
+        function setChunk(n) {
+            chunkSize = n;
+            [1,2,3].forEach(i => document.getElementById("chunk-"+i).style.background = i === n ? "#555" : "");
             updateDisplay();
         }
 
@@ -460,6 +468,9 @@
             }
 
             const chunk = words.slice(currentIndex, currentIndex + chunkSize).join(' ');
+            const sent = sentences.find(s => currentIndex >= s.start && currentIndex <= s.end);
+            const ctxEl = document.getElementById('sentence-context');
+            if (ctxEl) ctxEl.textContent = sent ? sent.text : '';
             if (!chunk) return;
 
             if (chunkSize > 1) {

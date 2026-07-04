@@ -231,7 +231,7 @@
         let words = [];
         let currentIndex = 0;
         let isPlaying = false;
-        let wpm = 300;
+        let wpm = 300; // default
         let intervalId = null;
         let chunkSize = 1;
 
@@ -499,6 +499,10 @@
             document.getElementById('progress-text').textContent = `${Math.floor(pct)}%`;
         }
 
+        function saveWpm(val) {
+            if (localStorage) localStorage.setItem("wpm", val);
+        }
+
         async function saveProgress() {
             if (!currentDoc) return;
             await fetch(`${API_URL}/documents/${currentDoc.id}/progress`, {
@@ -530,6 +534,13 @@
                 document.body.classList.add('light-mode');
             }
         })();
+        // Initialize WPM from localStorage
+        if (localStorage.getItem('wpm')) {
+            wpm = parseInt(localStorage.getItem('wpm'));
+            if (wpm < 100) wpm = 100;
+            if (wpm > 1000) wpm = 1000;
+        }
+        document.getElementById('wpm-slider').value = wpm;
         function setView(id) {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById(id).classList.add('active');

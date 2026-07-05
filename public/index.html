@@ -420,6 +420,7 @@
         function updateWpm(val) {
             wpm = parseInt(val);
             document.getElementById('wpm-display').textContent = `${wpm} WPM`;
+            saveWpm(wpm);
             if (isPlaying) { pause(); play(); }
         }
 
@@ -554,6 +555,62 @@
             if (wpm > 1000) wpm = 1000;
         }
         document.getElementById('wpm-slider').value = wpm;
+        // Keyboard Shortcuts
+        document.addEventListener("keydown", (e) => {
+          // Prevent default for some keys to avoid scroll/refresh
+          if (["Space","ArrowLeft","ArrowRight","ArrowUp","ArrowDown"].includes(e.code) && e.target.tagName !== "INPUT" && e.target.tagName !== "TEXTAREA") {
+            e.preventDefault();
+          }
+          
+          // Space or Enter: toggle play/pause
+          if (e.code === "Space" || e.code === "Enter") {
+            if (!isPlaying) play();
+            else pause();
+            return;
+          }
+          
+          // Left arrow: step back one word
+          if (e.code === "ArrowLeft") {
+            rewind(1);
+            if (!isPlaying) saveProgress();
+            return;
+          }
+          
+          // Right arrow: step forward one word
+          if (e.code === "ArrowRight") {
+            currentIndex = Math.min(currentIndex + 1, words.length - 1);
+            updateDisplay();
+            updateProgressUI();
+            if (!isPlaying) saveProgress();
+            return;
+          }
+          
+          // Up arrow: decrease WPM
+          if (e.code === "ArrowUp") {
+            wpm = Math.min(1000, wpm + 50);
+            document.getElementById("wpm-display").textContent = wpm + " WPM";
+            document.getElementById("wpm-slider").value = wpm;
+            saveWpm(wpm);
+            if (isPlaying) { pause(); play(); }
+            return;
+          }
+          
+          // Down arrow: increase WPM
+          if (e.code === "ArrowDown") {
+            wpm = Math.max(100, wpm - 50);
+            document.getElementById("wpm-display").textContent = wpm + " WPM";
+            document.getElementById("wpm-slider").value = wpm;
+            saveWpm(wpm);
+            if (isPlaying) { pause(); play(); }
+            return;
+          }
+        });
+
+        // Add keyboard shortcut hint
+        const kbHint = document.createElement("span");
+        kbHint.style.cssText = "font-size: 10px; color: #666; margin-top: 5px;";
+        kbHint.textContent = "⌨️ Space: Play/Pause · ←/→: Step · ↑/↓: WPM";
+        document.getElementById("progress-text").parentElement.appendChild(kbHint);
         function setView(id) {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById(id).classList.add('active');

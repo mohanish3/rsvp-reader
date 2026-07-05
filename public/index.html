@@ -219,6 +219,7 @@
             <div class="control-row" style="justify-content: center; gap: 20px;">
                 <button onclick="rewind(10)" class="secondary">-10</button>
                 <button onclick="togglePlay()" id="play-btn" style="width: 80px;">Play</button>
+                <button onclick="resume()" id="resume-btn" class="secondary">Resume</button>
                 <button onclick="toggleChunk()" id="chunk-btn" class="secondary">1 Word</button>
             </div>
         </div>
@@ -363,9 +364,10 @@
 
         function play() {
             if (currentIndex >= words.length) {
-                currentIndex = 0;
-                updateDisplay();
-                updateProgressUI();
+                // Already at end - stop and let user know
+                pause();
+                alert('End of text reached. Resume from the beginning or use the slider to continue.');
+                return;
             }
 
             isPlaying = true;
@@ -392,6 +394,15 @@
             updateDisplay();
             updateProgressUI();
             if (!isPlaying) saveProgress();
+        }
+
+        function resume() {
+            // Restore from saved position
+            const savedIndex = localStorage.getItem('rsvp-reader-index');
+            if (savedIndex) {
+                currentIndex = parseInt(savedIndex);
+            }
+            play();
         }
 
         function seek(val) {
@@ -505,6 +516,8 @@
 
         async function saveProgress() {
             if (!currentDoc) return;
+            // Save to localStorage for resume functionality
+            localStorage.setItem('rsvp-reader-index', currentIndex);
             await fetch(`${API_URL}/documents/${currentDoc.id}/progress`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

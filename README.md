@@ -1,6 +1,6 @@
 # RSVP Reader
 
-A fast, mobile-first speed-reading app. Text appears one word at a time in a fixed position — your eyes stay still, words come to you. Supports plain text and PDF uploads.
+A fast, mobile-first speed-reading app. Text appears one word at a time in a fixed position, your eyes stay still, words come to you. Supports plain text and PDF uploads.
 
 ## Getting Started
 
@@ -47,7 +47,7 @@ Dragging the progress slider updates the display immediately but only saves to t
 No framework, no bundler, no transpiler. The RSVP engine is ~250 lines of straightforward DOM manipulation. A framework would add hundreds of KB and a build pipeline for no real benefit. The app loads instantly.
 
 ### In-memory DB cache
-`db.json` is read once at server startup and held in memory. All reads are instant (no disk I/O). Writes are synchronous write-throughs — acceptable because writes only happen on user actions (save, delete, rename), not on reads. For a personal library of hundreds of documents this is effectively zero-overhead.
+`db.json` is read once at server startup and held in memory. All reads are instant (no disk I/O). Writes are synchronous write-throughs, acceptable because writes only happen on user actions (save, delete, rename), not on reads. For a personal library of hundreds of documents this is effectively zero-overhead.
 
 ### PDF temp file cleanup
 Uploaded PDFs are deleted from disk immediately after text extraction, whether extraction succeeds or fails. The raw file is never needed after that point.
